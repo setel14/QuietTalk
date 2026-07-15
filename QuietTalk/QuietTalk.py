@@ -87,8 +87,9 @@ if not st.session_state.user:
             c.execute("SELECT nick FROM uzytkownicy WHERE nick=? AND haslo=?", (login_nick.strip(), login_haslo.strip()))
             user_exists = c.fetchone()
             if user_exists:
-                st.session_state.user = str(user_exists[0])
-                st.query_params["u"] = str(user_exists[0])
+                czysty_nick = user_exists[0]
+                st.session_state.user = czysty_nick
+                st.query_params["u"] = czysty_nick
                 st.rerun()
             else:
                 st.error("Nieprawidłowy nick lub hasło!")
@@ -147,7 +148,7 @@ if not st.session_state.user:
 else:
     with st.sidebar:
         st.markdown(f"### 👤 **{st.session_state.user}**")
-        if st.button("🔒 Wyloguj", size="small"):
+        if st.button("🔒 Wyloguj", use_container_width=True):
             st.session_state.user = ""
             st.query_params.clear()
             st.rerun()
