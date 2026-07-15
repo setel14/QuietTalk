@@ -71,8 +71,8 @@ if not st.session_state.user:
             c.execute("SELECT nick FROM uzytkownicy WHERE nick=? AND haslo=?", (login_nick.strip(), login_haslo.strip()))
             user_exists = c.fetchone()
             if user_exists:
-                st.session_state.user = user_exists[0]
-                st.query_params["u"] = user_exists[0]
+                st.session_state.user = str(user_exists[0])
+                st.query_params["u"] = str(user_exists[0])
                 st.rerun()
             else:
                 st.error("Nieprawidłowy nick lub hasło!")
@@ -86,7 +86,7 @@ if not st.session_state.user:
             if st.button("Nie pamiętam hasła", use_container_width=True):
                 st.session_state.view = "reset"
                 st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_hidden_html=True)
 
     elif st.session_state.view == "register":
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
@@ -114,7 +114,7 @@ if not st.session_state.user:
         if st.button("Powrót do logowania", use_container_width=True):
             st.session_state.view = "login"
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_hidden_html=True)
 
     elif st.session_state.view == "reset":
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
@@ -133,10 +133,10 @@ if not st.session_state.user:
         if st.button("Powrót do logowania", use_container_width=True):
             st.session_state.view = "login"
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_hidden_html=True)
 
 else:
-    col1, col2 = st.columns()
+    col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"🛸 Rozmawiasz jako: **{st.session_state.user}**")
     with col2:
