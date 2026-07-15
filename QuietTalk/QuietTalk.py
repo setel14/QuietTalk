@@ -46,7 +46,7 @@ st.markdown("""
         color: white;
     }
     </style>
-""", unsafe_hidden_html=True)
+""", unsafe_allow_html=True)
 
 if "user" not in st.session_state:
     st.session_state.user = st.query_params.get("u", "")
@@ -58,10 +58,10 @@ if st.session_state.user:
     st.fragment(run_every=3)(lambda: None)()
 
 if not st.session_state.user:
-    st.markdown("<h1 style='text-align: center; color: #00f2fe; font-family: sans-serif;'>🛸 QuietTalk</h1>", unsafe_hidden_html=True)
+    st.markdown("<h1 style='text-align: center; color: #00f2fe; font-family: sans-serif;'>🛸 QuietTalk</h1>", unsafe_allow_html=True)
     
     if st.session_state.view == "login":
-        st.markdown("<div class='login-box'>", unsafe_hidden_html=True)
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.subheader("Zaloguj się")
         
         login_nick = st.text_input("Nick:")
@@ -86,10 +86,10 @@ if not st.session_state.user:
             if st.button("Nie pamiętam hasła", use_container_width=True):
                 st.session_state.view = "reset"
                 st.rerun()
-        st.markdown("</div>", unsafe_hidden_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.view == "register":
-        st.markdown("<div class='login-box'>", unsafe_hidden_html=True)
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.subheader("Zarejestruj się")
         
         reg_email = st.text_input("E-mail:")
@@ -114,10 +114,10 @@ if not st.session_state.user:
         if st.button("Powrót do logowania", use_container_width=True):
             st.session_state.view = "login"
             st.rerun()
-        st.markdown("</div>", unsafe_hidden_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.view == "reset":
-        st.markdown("<div class='login-box'>", unsafe_hidden_html=True)
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.subheader("Odzyskiwanie hasła")
         
         reset_input = st.text_input("Wpisz swój E-mail lub Numer telefonu:")
@@ -133,7 +133,7 @@ if not st.session_state.user:
         if st.button("Powrót do logowania", use_container_width=True):
             st.session_state.view = "login"
             st.rerun()
-        st.markdown("</div>", unsafe_hidden_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 else:
     col1, col2 = st.columns()
