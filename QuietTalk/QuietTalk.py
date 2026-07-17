@@ -3,35 +3,52 @@ import sqlite3
 import random
 from datetime import datetime
 
-conn = sqlite3.connect("baza_czatu.db", check_same_thread=False)
-c = conn.cursor()
-c.execute("""
-    CREATE TABLE IF NOT EXISTS uzytkownicy (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        telefon TEXT,
-        nick TEXT UNIQUE,
-        haslo TEXT
-    )
-""")
-c.execute("""
-    CREATE TABLE IF NOT EXISTS znajomi (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_od TEXT,
-        user_do TEXT,
-        status TEXT
-    )
-""")
-c.execute("""
-    CREATE TABLE IF NOT EXISTS wiadomosci_dm (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nadawca TEXT,
-        odbiorca TEXT,
-        tresc TEXT,
-        data TEXT
-    )
-""")
-conn.commit()
+DB_NAME = "baza_czatu.db"
+
+def init_db():
+    with sqlite3.connect(DB_NAME, check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS uzytkownicy (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE,
+                telefon TEXT,
+                nick TEXT UNIQUE,
+                haslo TEXT
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS znajomi (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_od TEXT,
+                user_do TEXT,
+                status TEXT
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS wiadomosci_dm (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nadawca TEXT,
+                odbiorca TEXT,
+                tresc TEXT,
+                data TEXT
+            )
+        """)
+        conn.commit()
+
+def run_query(query, params=(), commit=False, fetchone=False, fetchall=False):
+    with sqlite3.connect(DB_NAME, check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute(query, params)
+        if commit:
+            conn.commit()
+        if fetchone:
+            return c.fetchone()
+        if fetchall:
+            return c.fetchall()
+    return None
+
+init_db()
 
 st.set_page_config(page_title="QuietTalk", page_icon="🔒", layout="wide")
 
@@ -85,9 +102,6 @@ if "view" not in st.session_state:
 if "active_dm" not in st.session_state:
     st.session_state.active_dm = ""
 
-if st.session_state.user:
-    st.fragment(run_every=3)(lambda: None)()
-
 if not st.session_state.user:
     st.markdown("<h1 style='text-align: center; color: #00f2fe; font-family: sans-serif; font-weight: bold; text-shadow: 0 0 15px rgba(0,242,254,0.6);'>🛸 QuietTalk</h1>", unsafe_allow_html=True)
     
@@ -97,8 +111,7 @@ if not st.session_state.user:
         login_haslo = st.text_input("Hasło:", type="password")
         
         if st.button("Zaloguj się", use_container_width=True):
-            c.execute("SELECT nick FROM uzytkownicy WHERE nick=? AND haslo=?", (login_nick.strip(), login_haslo.strip()))
-            user_exists = c.fetchone()
+            user_exists = run_query("SELECT nick FROM uzytkownicy WHERE nick=? AND haslo=?", (login_nick.strip(), login_haslo.strip()), fetchone=True)
             if user_exists:
                 st.session_state.user = str(user_exists[0])
                 st.rerun()
@@ -127,9 +140,8 @@ if not st.session_state.user:
         if st.button("Załóż konto", use_container_width=True):
             if reg_email and reg_nick and reg_haslo:
                 try:
-                    c.execute("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
-                              (reg_email.strip(), reg_telefon.strip(), reg_nick.strip(), reg_haslo.strip()))
-                    conn.commit()
+                    run_query("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
+                              (reg_email.strip(), reg_telefon.strip(), reg_nick.strip(), reg_haslo.strip()), commit=True)
                     st.success("Konto założone!")
                     st.session_state.view = "login"
                     st.rerun()
@@ -161,25 +173,23 @@ else:
         st.markdown(f"### 👤 **{st.session_state.user}**")
         if st.button("🔒 Wyloguj", use_container_width=True):
             st.session_state.user = ""
+            st.session_state.active_dm = ""
             st.rerun()
         st.divider()
         
         st.markdown("📩 **Zaproszenia do znajomych**")
-        c.execute("SELECT user_od FROM znajomi WHERE user_do=? AND status='oczekujace'", (st.session_state.user,))
-        zaproszenia = c.fetchall()
+        zaproszenia = run_query("SELECT user_od FROM znajomi WHERE user_do=? AND status='oczekujace'", (st.session_state.user,), fetchall=True)
         if zaproszenia:
             for zap in zaproszenia:
                 osoba = str(zap[0])
                 col_z1, col_z2 = st.columns(2)
                 with col_z1:
                     if st.button(f"✅ {osoba}", key=f"acc_{osoba}", use_container_width=True):
-                        c.execute("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do=?", (osoba, st.session_state.user))
-                        conn.commit()
+                        run_query("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
                         st.rerun()
                 with col_z2:
                     if st.button(f"❌ {osoba}", key=f"dec_{osoba}", use_container_width=True):
-                        c.execute("DELETE FROM znajomi WHERE user_od=? AND user_do=?", (osoba, st.session_state.user))
-                        conn.commit()
+                        run_query("DELETE FROM znajomi WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
                         st.rerun()
         else:
             st.write("Brak nowych zaproszeń.")
@@ -189,17 +199,14 @@ else:
         st.markdown("🔍 **Szukaj znajomych**")
         szukaj = st.text_input("Wpisz nick:", label_visibility="collapsed")
         if szukaj.strip():
-            c.execute("SELECT nick FROM uzytkownicy WHERE nick LIKE ? AND nick != ?", (f"%{szukaj.strip()}%", st.session_state.user))
-            znalezieni = c.fetchall()
+            znalezieni = run_query("SELECT nick FROM uzytkownicy WHERE nick LIKE ? AND nick != ?", (f"%{szukaj.strip()}%", st.session_state.user), fetchall=True)
             for z in znalezieni:
                 osoba = str(z[0])
-                c.execute("SELECT status FROM znajomi WHERE (user_od=? AND user_do=?) OR (user_od=? AND user_do=?)",
-                          (st.session_state.user, osoba, osoba, st.session_state.user))
-                relacja = c.fetchone()
+                relacja = run_query("SELECT status FROM znajomi WHERE (user_od=? AND user_do=?) OR (user_od=? AND user_do=?)",
+                                    (st.session_state.user, osoba, osoba, st.session_state.user), fetchone=True)
                 if not relacja:
                     if st.button(f"➕ Zaproś {osoba}", key=f"inv_{osoba}", use_container_width=True):
-                        c.execute("INSERT INTO znajomi (user_od, user_do, status) VALUES (?, ?, 'oczekujace')", (st.session_state.user, osoba))
-                        conn.commit()
+                        run_query("INSERT INTO znajomi (user_od, user_do, status) VALUES (?, ?, 'oczekujace')", (st.session_state.user, osoba), commit=True)
                         st.success(f"Wysłano do {osoba}!")
                         st.rerun()
                 else:
@@ -208,12 +215,11 @@ else:
         st.divider()
         
         st.markdown("💬 **Bezpośrednie wiadomości (DM)**")
-        c.execute("""
+        lista_znajomych = run_query("""
             SELECT user_do FROM znajomi WHERE user_od=? AND status='zaakceptowane'
             UNION
             SELECT user_od FROM znajomi WHERE user_do=? AND status='zaakceptowane'
-        """, (st.session_state.user, st.session_state.user))
-        lista_znajomych = c.fetchall()
+        """, (st.session_state.user, st.session_state.user), fetchall=True)
         
         if lista_znajomych:
             for zn in lista_znajomych:
@@ -231,18 +237,23 @@ else:
         st.markdown(f"## 💬 Czat z: **{st.session_state.active_dm}**")
         st.divider()
         
-        c.execute("""
-            SELECT nadawca, tresc FROM wiadomosci_dm 
-            WHERE (nadawca=? AND odbiorca=?) OR (nadawca=? AND odbiorca=?) 
-            ORDER BY id ASC
-        """, (st.session_state.user, st.session_state.active_dm, st.session_state.active_dm, st.session_state.user))
-        rozmowa = c.fetchall()
-        
-        for nadawca, tresc in rozmowa:
-            rola = "user" if nadawca == st.session_state.user else "assistant"
-            with st.chat_message(rola):
-                st.write(f"**{nadawca}**: {tresc}")
+        @st.fragment(run_every=3)
+        def wyswietl_czat():
+            rozmowa = run_query("""
+                SELECT nadawca, tresc FROM wiadomosci_dm 
+                WHERE (nadawca=? AND odbiorca=?) OR (nadawca=? AND odbiorca=?) 
+                ORDER BY id ASC
+            """, (st.session_state.user, st.session_state.active_dm, st.session_state.active_dm, st.session_state.user), fetchall=True)
+            
+            for nadawca, tresc in rozmowa:
+                rola = "user" if nadawca == st.session_state.user else "assistant"
+                with st.chat_message(rola):
+                    st.write(f"**{nadawca}**: {tresc}")
+
+        wyswietl_czat()
                 
         if prompt := st.chat_input(f"Napisz do {st.session_state.active_dm}..."):
             teraz = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO wiadomosci_dm (nadawca, odbiorca, tresc, data) VALUES (?, ?, ?, ?)",
+            run_query("INSERT INTO wiadomosci_dm (nadawca, odbiorca, tresc, data) VALUES (?, ?, ?, ?)",
+                      (st.session_state.user, st.session_state.active_dm, prompt, teraz), commit=True)
+            st.rerun()
