@@ -158,7 +158,7 @@ if not st.session_state.user:
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.subheader("Zarejestruj się")
         reg_email = st.text_input("Prawdziwy E-mail:")
-        reg_telefon = st.text_input("Numer telefonu (min. 9 cyfr):")
+        reg_telefon = st.text_input("Numer telefonu (min. 3 cyfry):")
         reg_nick = st.text_input("Twój Nick:")
         reg_haslo = st.text_input("Hasło:", type="password")
         
@@ -166,8 +166,8 @@ if not st.session_state.user:
             if reg_email and reg_telefon and reg_nick and reg_haslo:
                 if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", reg_email):
                     st.error("Błąd: To nie jest prawdziwy format e-maila!")
-                elif not reg_telefon.isdigit() or len(reg_telefon) < 9:
-                    st.error("Błąd: Numer musi składać się z samych cyfr i mieć min. 9 znaków!")
+                elif not reg_telefon.isdigit() or len(reg_telefon) < 3:
+                    st.error("Błąd: Numer musi składać się z samych cyfr i mieć min. 3 znaki!")
                 else:
                     try:
                         run_query("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
@@ -200,7 +200,7 @@ if not st.session_state.user:
             if reset_input.strip():
                 if "@" in reset_input:
                     st.success(f"📧 Wysłano prawdziwy e-mail z linkiem (w pełnej wersji)")
-                elif reset_input.isdigit() and len(reset_input) >= 9:
+                elif reset_input.isdigit() and len(reset_input) >= 3:
                     st.success(f"📱 Wysłano SMS z kodem weryfikacyjnym (symulacja)")
                 else:
                     st.error("Wpisz poprawny e-mail lub numer telefonu!")
