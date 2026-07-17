@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import random
 from datetime import datetime
+import re
 
 DB_NAME = "baza_czatu.db"
 
@@ -138,17 +139,22 @@ if not st.session_state.user:
         reg_haslo = st.text_input("Hasło:", type="password")
         
         if st.button("Załóż konto", use_container_width=True):
-            if reg_email and reg_nick and reg_haslo:
-                try:
-                    run_query("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
-                              (reg_email.strip(), reg_telefon.strip(), reg_nick.strip(), reg_haslo.strip()), commit=True)
-                    st.success("Konto założone!")
-                    st.session_state.view = "login"
-                    st.rerun()
-                except sqlite3.IntegrityError:
-                    st.error("Nick lub Email jest już zajęty!")
+            if reg_email and reg_telefon and reg_nick and reg_haslo:
+                if not re.match(r"[^@]+@[^@]+\.[^@]+", reg_email):
+                    st.error("Wpisz poprawny adres e-mail (np. ktos@domena.pl)!")
+                elif not reg_telefon.isdigit() or len(reg_telefon) < 9:
+                    st.error("Numer telefonu musi składać się z samych cyfr i mieć min. 9 znaków!")
+                else:
+                    try:
+                        run_query("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
+                                  (reg_email.strip(), reg_telefon.strip(), reg_nick.strip(), reg_haslo.strip()), commit=True)
+                        st.success("Konto założone!")
+                        st.session_state.view = "login"
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error("Nick lub Email jest już zajęty!")
             else:
-                st.error("Uzupełnij wymagane pola!")
+                st.error("Uzupełnij wszystkie pola!")
         if st.button("Powrót", use_container_width=True):
             st.session_state.view = "login"
             st.rerun()
@@ -177,22 +183,26 @@ else:
             st.rerun()
         st.divider()
         
-        st.markdown("📩 **Zaproszenia do znajomych**")
-        zaproszenia = run_query("SELECT user_od FROM znajomi WHERE user_do=? AND status='oczekujace'", (st.session_state.user,), fetchall=True)
-        if zaproszenia:
-            for zap in zaproszenia:
-                osoba = str(zap[0])
-                col_z1, col_z2 = st.columns(2)
-                with col_z1:
-                    if st.button(f"✅ {osoba}", key=f"acc_{osoba}", use_container_width=True):
-                        run_query("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
-                        st.rerun()
-                with col_z2:
-                    if st.button(f"❌ {osoba}", key=f"dec_{osoba}", use_container_width=True):
-                        run_query("DELETE FROM znajomi WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
-                        st.rerun()
-        else:
-            st.write("Brak nowych zaproszeń.")
+        @st.fragment(run_every=5)
+        def sprawdz_zaproszenia():
+            st.markdown("📩 **Zaproszenia do znajomych**")
+            zaproszenia = run_query("SELECT user_od FROM znajomi WHERE user_do=? AND status='oczekujace'", (st.session_state.user,), fetchall=True)
+            if zaproszenia:
+                for zap in zaproszenia:
+                    osoba = str(zap[0])
+                    col_z1, col_z2 = st.columns(2)
+                    with col_z1:
+                        if st.button(f"✅ {osoba}", key=f"acc_{osoba}", use_container_width=True):
+                            run_query("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
+                            st.rerun()
+                    with col_z2:
+                        if st.button(f"❌ {osoba}", key=f"dec_{osoba}", use_container_width=True):
+                            run_query("DELETE FROM znajomi WHERE user_od=? AND user_do=?", (osoba, st.session_state.user), commit=True)
+                            st.rerun()
+            else:
+                st.write("Brak nowych zaproszeń.")
+                
+        sprawdz_zaproszenia()
         
         st.divider()
         
