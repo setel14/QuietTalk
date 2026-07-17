@@ -3,8 +3,32 @@ import sqlite3
 import random
 from datetime import datetime
 import re
+import smtplib
+from email.mime.text import MIMEText
 
+MOJ_EMAIL = "TWOJ_EMAIL@gmail.com"
+MOJE_HASLO = "TWOJE_HASLO_APLIKACJI"
 DB_NAME = "baza_czatu.db"
+
+def wyslij_email_powitalny(odbiorca, nick):
+    if MOJ_EMAIL == "TWOJ_EMAIL@gmail.com":
+        return False
+        
+    temat = "🛸 Witamy w QuietTalk!"
+    tresc = f"Siema {nick}!\n\nTwoje konto w aplikacji QuietTalk zostało pomyślnie zarejestrowane. Jesteś teraz w bezpiecznej strefy, z dala od systemów skanujących.\n\nTwój podany e-mail to: {odbiorca}\n\nPozdro,\nTwórca QuietTalk"
+    
+    msg = MIMEText(tresc)
+    msg['Subject'] = temat
+    msg['From'] = MOJ_EMAIL
+    msg['To'] = odbiorca
+    
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(MOJ_EMAIL, MOJE_HASLO)
+            server.send_message(msg)
+        return True
+    except:
+        return False
 
 def init_db():
     with sqlite3.connect(DB_NAME, check_same_thread=False) as conn:
@@ -133,26 +157,34 @@ if not st.session_state.user:
     elif st.session_state.view == "register":
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.subheader("Zarejestruj się")
-        reg_email = st.text_input("E-mail:")
-        reg_telefon = st.text_input("Numer telefonu:")
+        reg_email = st.text_input("Prawdziwy E-mail:")
+        reg_telefon = st.text_input("Numer telefonu (min. 9 cyfr):")
         reg_nick = st.text_input("Twój Nick:")
         reg_haslo = st.text_input("Hasło:", type="password")
         
         if st.button("Załóż konto", use_container_width=True):
             if reg_email and reg_telefon and reg_nick and reg_haslo:
-                if not re.match(r"[^@]+@[^@]+\.[^@]+", reg_email):
-                    st.error("Wpisz poprawny adres e-mail (np. ktos@domena.pl)!")
+                if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", reg_email):
+                    st.error("Błąd: To nie jest prawdziwy format e-maila!")
                 elif not reg_telefon.isdigit() or len(reg_telefon) < 9:
-                    st.error("Numer telefonu musi składać się z samych cyfr i mieć min. 9 znaków!")
+                    st.error("Błąd: Numer musi składać się z samych cyfr i mieć min. 9 znaków!")
                 else:
                     try:
                         run_query("INSERT INTO uzytkownicy (email, telefon, nick, haslo) VALUES (?, ?, ?, ?)",
                                   (reg_email.strip(), reg_telefon.strip(), reg_nick.strip(), reg_haslo.strip()), commit=True)
-                        st.success("Konto założone!")
+                        
+                        st.info("Konto założone! Trwa wysyłanie potwierdzenia na e-mail...")
+                        sukces_email = wyslij_email_powitalny(reg_email.strip(), reg_nick.strip())
+                        
+                        if sukces_email:
+                            st.success("Wysłano e-mail powitalny! Logowanie...")
+                        else:
+                            st.warning("Zarejestrowano, ale wysyłka e-maila nie działa (sprawdź hasło aplikacji w kodzie).")
+                            
                         st.session_state.view = "login"
                         st.rerun()
                     except sqlite3.IntegrityError:
-                        st.error("Nick lub Email jest już zajęty!")
+                        st.error("Błąd: Nick lub Email jest już w naszej bazie!")
             else:
                 st.error("Uzupełnij wszystkie pola!")
         if st.button("Powrót", use_container_width=True):
@@ -166,7 +198,12 @@ if not st.session_state.user:
         reset_input = st.text_input("E-mail lub Telefon:")
         if st.button("Wyślij kod", use_container_width=True):
             if reset_input.strip():
-                st.info(f"🔒 Kod (symulacja): {random.randint(100000, 999999)}")
+                if "@" in reset_input:
+                    st.success(f"📧 Wysłano prawdziwy e-mail z linkiem (w pełnej wersji)")
+                elif reset_input.isdigit() and len(reset_input) >= 9:
+                    st.success(f"📱 Wysłano SMS z kodem weryfikacyjnym (symulacja)")
+                else:
+                    st.error("Wpisz poprawny e-mail lub numer telefonu!")
             else:
                 st.error("Wpisz dane!")
         if st.button("Powrót", use_container_width=True):
