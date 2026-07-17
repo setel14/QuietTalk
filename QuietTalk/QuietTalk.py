@@ -173,7 +173,7 @@ else:
                 col_z1, col_z2 = st.columns(2)
                 with col_z1:
                     if st.button(f"✅ {osoba}", key=f"acc_{osoba}", use_container_width=True):
-                        c.execute("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do?", (osoba, st.session_state.user))
+                        c.execute("UPDATE znajomi SET status='zaakceptowane' WHERE user_od=? AND user_do=?", (osoba, st.session_state.user))
                         conn.commit()
                         st.rerun()
                 with col_z2:
