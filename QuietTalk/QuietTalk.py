@@ -245,4 +245,4 @@ else:
                 
         if prompt := st.chat_input(f"Napisz do {st.session_state.active_dm}..."):
             teraz = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO wiadomosci_dm (nadawca, odbiorca, tresc, data) VALUES (?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO wiadomosci_dm (nadawca, odbiorca, tresc, data) VALUES (?, ?, ?, ?)",
